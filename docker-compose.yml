@@ -1,0 +1,15 @@
+# Optional convenience; `make docker-build` / `make docker-run` remain the primary path.
+# Keep in sync with the Makefile: image name `wine-quality`, the /app/outputs mount.
+services:
+  analysis:
+    build: .
+    image: wine-quality            # same image name as make docker-build
+    environment:
+      WINE_OUTPUT_DIR: /app/outputs
+    volumes:
+      - ./outputs:/app/outputs     # charts appear in ./outputs on the host
+  tests:
+    build: .
+    image: wine-quality
+    command: ["python", "-m", "pytest", "-q"]
+    profiles: ["test"]             # not started by `docker compose up`
