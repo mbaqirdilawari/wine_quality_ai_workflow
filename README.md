@@ -144,8 +144,6 @@ This project doesn't strictly need Compose because it is a single container with
 
 ![make docker-run](docs/screenshots/docker-run.png)
 
-> TODO (user): capture `docs/screenshots/docker-build.png` (showing `make docker-build` succeeding) and `docs/screenshots/docker-run.png` (showing `make docker-run` output and the charts in `outputs/`).
-
 ## 8. Manual smoke test result
 
 Commands (from the Manual Smoke Test in [`docs/plan.md`](docs/plan.md)):
@@ -161,7 +159,14 @@ docker compose run --rm tests
 docker compose down
 ```
 
-> TODO (user): record the actual outcome: pass/fail, the key printed numbers, and any issues and fixes.
+**Result: passed.** I ran every step myself on my Mac (Python 3.13.13, Docker Desktop) on Oct 1, 2026, before starting the Tester stage.
+
+- **Setup:** I deleted `.venv` first to test a fresh install. `make install` recreated it and installed all pinned packages, and `.venv/bin/python --version` printed `Python 3.13.13`.
+- **Local run:** after deleting the old charts, `make run` printed the expected numbers: shape `(6497, 13)`, 0 missing values, 1177 duplicates, then `Removed 1177 exact duplicate rows`, `Removed 0 rows with missing values` and `-> 5320 rows remain`. The model comparison showed R² 0.275 (3 features) and 0.302 (11 features). Both charts were created in `outputs/`.
+- **Docker:** `make docker-build` finished successfully on `python:3.13-slim`. After deleting the charts again, `make docker-run` printed the same numbers, and both charts reappeared in `outputs/` on my machine through the mounted folder.
+- **Charts:** I opened both. The boxplot shows alcohol rising with quality from score 5 upward, and the scatter trend line slopes down (more alcohol, lower density).
+- **Docker Compose:** `docker compose up --build` started only the `analysis` service, printed the same results and then exited. `docker compose run --rm tests` gave 48 passed, and `docker compose down` cleaned up.
+- **Issue noticed:** the README shows the two charts from `outputs/`, but `.gitignore` excludes `outputs/*.png`, so those images will not appear on GitHub. I am leaving this for the Tester stage to review.
 
 ## 9. AI workflow
 
