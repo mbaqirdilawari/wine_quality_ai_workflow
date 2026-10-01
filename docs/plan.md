@@ -301,7 +301,7 @@ docker compose down
 - `make install` creates `.venv/`, and `.venv/bin/python --version` prints `Python 3.13.x`.
 - `make run` prints, in order:
   - inspection: shape `(6497, 13)`, 0 missing values, 1177 duplicates
-  - cleaning: 1177 duplicates removed → 5320 rows, plus the "outliers kept" note
+  - cleaning: 1177 duplicates removed, `Removed 0 rows with missing values` → 5320 rows, plus the "outliers kept" note
   - filter and group summaries by type and by quality
   - a model comparison table with R² and RMSE for 3 vs 11 features (expect modest R², with 11 features ≥ 3 features)
   - the paths of the saved charts

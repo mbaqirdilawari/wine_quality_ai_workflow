@@ -26,6 +26,43 @@ def test_load_missing_column_raises(tmp_path, wine_df):
         load_data(path)
 
 
+def test_load_drops_extra_columns(tmp_path, wine_df):
+    # An id column would hide duplicates and an empty notes column would make
+    # every row look incomplete; both must be dropped on load.
+    df = pd.concat([wine_df, wine_df.iloc[[0]]], ignore_index=True)
+    df.insert(0, "id", range(len(df)))
+    df["notes"] = None
+    path = tmp_path / "wine.csv"
+    df.to_csv(path, index=False)
+    loaded = load_data(path)
+    assert list(loaded.columns) == EXPECTED_COLUMNS
+    assert inspect_data(loaded)["duplicates"] == 1
+    assert len(clean_data(loaded)) == len(wine_df)
+
+
+def test_load_non_numeric_column_raises(tmp_path, wine_df):
+    df = wine_df.astype({"alcohol": object})
+    df.loc[0, "alcohol"] = "abc"
+    path = tmp_path / "wine.csv"
+    df.to_csv(path, index=False)
+    with pytest.raises(ValueError, match="non-numeric.*alcohol"):
+        load_data(path)
+
+
+def test_load_empty_file_raises(tmp_path):
+    path = tmp_path / "empty.csv"
+    path.write_text("")
+    with pytest.raises(ValueError, match="empty"):
+        load_data(path)
+
+
+def test_load_header_only_raises(tmp_path):
+    path = tmp_path / "header.csv"
+    pd.DataFrame(columns=EXPECTED_COLUMNS).to_csv(path, index=False)
+    with pytest.raises(ValueError, match="no data rows"):
+        load_data(path)
+
+
 # --- inspect_data ---
 
 

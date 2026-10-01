@@ -32,10 +32,10 @@ clean:
 docker-build:
 	docker build -t wine-quality .
 
-docker-run:
+docker-run: docker-build
 	docker run --rm -v "$(CURDIR)/outputs:/app/outputs" wine-quality
 
-docker-test:
+docker-test: docker-build
 	docker run --rm wine-quality python -m pytest -q
 
 .PHONY: compose-up compose-test

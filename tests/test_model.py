@@ -39,3 +39,10 @@ def test_empty_feature_list_raises(linear_df):
 def test_too_few_rows_raises(linear_df):
     with pytest.raises(ValueError, match="rows"):
         train_and_evaluate(linear_df.head(3), FEATURES_BASIC)
+
+
+def test_single_quality_value_in_test_set_raises(linear_df):
+    # R² is undefined here; sklearn would report a misleading 1.0.
+    constant = linear_df.assign(quality=6)
+    with pytest.raises(ValueError, match="only one quality value"):
+        train_and_evaluate(constant, FEATURES_BASIC)

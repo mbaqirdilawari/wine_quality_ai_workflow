@@ -60,7 +60,9 @@ docker run --rm \
   wine-quality
 ```
 
-The CSV must contain the same 13 columns. Otherwise `load_data` raises a clear `ValueError`.
+The CSV must contain the same 13 columns, and the 11 chemical columns and `quality` must be numeric. Any extra columns are dropped on load, so they cannot affect duplicate detection or the missing-value check. A missing column, a non-numeric value, an empty file, or a file with no data rows makes `load_data` raise a clear `ValueError`.
+
+> **Change beyond the original plan (approved by me during testing):** the Tester found that `load_data` only checked that the 13 columns were present. Extra columns changed the cleaning results: an `id` column hid every duplicate, and a mostly empty `notes` column made almost every row count as incomplete. A text value in a numeric column crashed later with an unclear `TypeError`. I approved having `load_data` keep only the 13 expected columns and raise a clear `ValueError` for non-numeric data.
 
 ## 4. Project structure
 
@@ -68,8 +70,10 @@ The CSV must contain the same 13 columns. Otherwise `load_data` raises a clear `
 wine_quality_ai_workflow/
 ├── data/wine_quality_merged.csv   # input dataset (not modified)
 ├── docs/plan.md                   # Architect's plan (the living spec)
+├── docs/figures/                  # committed copies of the two charts, shown in this README
 ├── docs/screenshots/              # Docker screenshots for this README
 ├── wine_analysis/
+│   ├── __init__.py    # marks the package
 │   ├── config.py      # get_data_path(), get_output_dir(): env vars with defaults
 │   ├── data.py        # load_data, inspect_data, clean_data; column-name constants
 │   ├── explore.py     # filter helpers, summary_by_type, summary_by_quality
@@ -84,18 +88,22 @@ wine_quality_ai_workflow/
 │   ├── test_model.py      # exact-linear R² ≈ 1, result shape, errors
 │   ├── test_plots.py      # PNGs written, nested dirs created
 │   └── test_pipeline.py   # regression numbers on the real CSV + end-to-end main()
-├── outputs/           # generated charts (git-ignored)
+├── outputs/           # generated charts (git-ignored; only .gitkeep is committed)
 ├── requirements.txt   # pinned dependencies
 ├── setup.cfg          # flake8 (max-line-length 88) and pytest config
 ├── Makefile           # the project's command interface
 ├── Dockerfile         # python:3.13-slim image that runs the analysis
 ├── docker-compose.yml # optional: `analysis` service + `tests` service (profile "test")
-└── .dockerignore
+├── .dockerignore      # keeps .venv, outputs, docs and caches out of the image
+├── .gitignore         # ignores .venv, caches, generated charts and raw AI transcripts
+└── README.md          # this file
 ```
 
 ## 5. Data cleaning decisions
 
 The raw data has 6,497 rows, 0 missing values and **1,177 exact duplicate rows**. Cleaning happens right after loading, before any exploration or modelling.
+
+> **Note:** [`docs/plan.md`](docs/plan.md) describes the original design, where cleaning removed exact duplicates only. This README lists the changes I approved later (dropping rows with missing values, and the stricter `load_data` checks in section 3).
 
 - **Duplicates are removed** (leaving 5,320 rows: 3,961 white and 1,359 red). Identical rows give some wines extra weight, and they can land in both the train and the test split. That leaks information and inflates test scores.
 - **Rows with missing values are removed** (none in this dataset, so the results above are unaffected). Because `WINE_DATA_PATH` can point to a different CSV, this guards against incomplete data: without it, the model step (`Input X contains NaN`) and the scatter trend line (`SVD did not converge`) crash. Missing values are **not imputed**, for the same reason outliers are kept: filling them in would invent lab measurements.
@@ -113,11 +121,11 @@ Linear regression predicting `quality`, 80/20 train/test split, `random_state=42
 | 3 features (`alcohol`, `volatile acidity`, `sulphates`) | 0.275 | 0.738 |
 | All 11 chemical features | 0.302 | 0.724 |
 
-![Alcohol by quality](outputs/alcohol_by_quality_boxplot.png)
+![Alcohol by quality](docs/figures/alcohol_by_quality_boxplot.png)
 
-![Alcohol vs density](outputs/alcohol_vs_density_scatter.png)
+![Alcohol vs density](docs/figures/alcohol_vs_density_scatter.png)
 
-(The charts are generated files. Run `make run` or `make docker-run` to create them.)
+(These are committed copies from `outputs/`, which is git-ignored. `make run` or `make docker-run` regenerates the charts in `outputs/`.)
 
 **Answer: only partly.** Three basic measurements explain about 27% of the variance in quality, and using all 11 adds only about 3 percentage points. A typical prediction is off by about 0.7 of a quality point. Alcohol shows the clearest signal: median alcohol rises steadily from quality 5 upward. Alcohol and density are strongly negatively related.
 
@@ -165,8 +173,8 @@ docker compose down
 - **Local run:** after deleting the old charts, `make run` printed the expected numbers: shape `(6497, 13)`, 0 missing values, 1177 duplicates, then `Removed 1177 exact duplicate rows`, `Removed 0 rows with missing values` and `-> 5320 rows remain`. The model comparison showed R² 0.275 (3 features) and 0.302 (11 features). Both charts were created in `outputs/`.
 - **Docker:** `make docker-build` finished successfully on `python:3.13-slim`. After deleting the charts again, `make docker-run` printed the same numbers, and both charts reappeared in `outputs/` on my machine through the mounted folder.
 - **Charts:** I opened both. The boxplot shows alcohol rising with quality from score 5 upward, and the scatter trend line slopes down (more alcohol, lower density).
-- **Docker Compose:** `docker compose up --build` started only the `analysis` service, printed the same results and then exited. `docker compose run --rm tests` gave 48 passed, and `docker compose down` cleaned up.
-- **Issue noticed:** the README shows the two charts from `outputs/`, but `.gitignore` excludes `outputs/*.png`, so those images will not appear on GitHub. I am leaving this for the Tester stage to review.
+- **Docker Compose:** `docker compose up --build` started only the `analysis` service, printed the same results and then exited. `docker compose run --rm tests` gave 48 passed (58 after the Tester's fixes, which I re-ran myself), and `docker compose down` cleaned up.
+- **Issue noticed:** the README originally showed the two charts from `outputs/`, but `.gitignore` excludes `outputs/*.png`, so those images would not have appeared on GitHub. The Tester confirmed this issue independently, and the charts are now copied to `docs/figures/` so they display on GitHub.
 
 ## 9. AI workflow
 
@@ -193,8 +201,7 @@ Each role worked in a fresh chat:
 | Previous version | This rebuild |
 |---|---|
 | one large file | modules with one job each (`config`, `data`, `explore`, `model`, `plots`, `main`) |
-| cleaning added last | duplicates removed first, before exploration or modelling |
-| tests written after the code | tests written alongside each module |
+| cleaning added last | cleaning done first, before exploration or modelling: exact duplicates removed, then rows with missing values || tests written after the code | tests written alongside each module |
 | no Docker, Makefile or configurable paths | Dockerfile (plus optional Compose), Makefile, and `WINE_DATA_PATH`/`WINE_OUTPUT_DIR` |
 
 > TODO (user): add anything else, such as whether the results changed compared with the previous version.

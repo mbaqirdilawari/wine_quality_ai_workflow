@@ -58,6 +58,11 @@ def main() -> None:
 
     _heading("2. CLEANING")
     df = clean_data(raw)
+    if df.empty:
+        raise ValueError(
+            "No rows left after cleaning (every row was a duplicate or had a "
+            "missing value)"
+        )
     # clean_data drops duplicates first, so the rest of the drop is missing values.
     n_missing_rows = len(raw) - info["duplicates"] - len(df)
     print(f"Removed {info['duplicates']} exact duplicate rows")

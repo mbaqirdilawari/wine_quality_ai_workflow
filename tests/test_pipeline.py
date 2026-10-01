@@ -54,6 +54,18 @@ def test_r2_plausible_and_deterministic(clean_df, features):
     assert first == second
 
 
+@pytest.mark.parametrize(
+    "features, r2, rmse",
+    [(FEATURES_BASIC, 0.275, 0.738), (FEATURES_ALL, 0.302, 0.724)],
+)
+def test_readme_results_pinned(clean_df, features, r2, rmse):
+    # The numbers in the README results table, to 3 decimals.
+    result = train_and_evaluate(clean_df, features)
+    assert result["r2"] == pytest.approx(r2, abs=5e-4)
+    assert result["rmse"] == pytest.approx(rmse, abs=5e-4)
+    assert (result["n_train"], result["n_test"]) == (4256, 1064)
+
+
 # --- integration ---
 
 
@@ -98,6 +110,17 @@ def test_main_with_missing_values(monkeypatch, tmp_path, capsys, clean_df):
     assert "Removed 4 rows with missing values" in out
     assert "-> 5316 rows remain" in out
     assert "MODEL COMPARISON" in out
+
+
+def test_main_no_rows_after_cleaning(monkeypatch, tmp_path, clean_df):
+    df = clean_df.head(20).copy()
+    df["chlorides"] = float("nan")  # every row is incomplete
+    csv_path = tmp_path / "all_nan.csv"
+    df.to_csv(csv_path, index=False)
+    monkeypatch.setenv("WINE_DATA_PATH", str(csv_path))
+    monkeypatch.setenv("WINE_OUTPUT_DIR", str(tmp_path / "out"))
+    with pytest.raises(ValueError, match="No rows left after cleaning"):
+        main_module.main()
 
 
 def test_main_missing_data_file(monkeypatch, tmp_path):

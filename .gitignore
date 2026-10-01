@@ -4,3 +4,4 @@ __pycache__/
 .pytest_cache/
 outputs/*.png
 .DS_Store
+*_raw.txt

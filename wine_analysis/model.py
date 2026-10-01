@@ -28,6 +28,11 @@ def train_and_evaluate(
     X_train, X_test, y_train, y_test = train_test_split(
         df[features], df[TARGET_COLUMN], test_size=test_size, random_state=random_state
     )
+    # With one quality value in the test set, R² is undefined (sklearn reports 1.0).
+    if y_test.nunique() < 2:
+        raise ValueError(
+            "The test set has only one quality value, so R² is not meaningful"
+        )
     model = LinearRegression().fit(X_train, y_train)
     predictions = model.predict(X_test)
     return {

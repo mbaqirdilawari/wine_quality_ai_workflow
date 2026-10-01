@@ -31,6 +31,13 @@ def test_closes_figure(wine_df, tmp_path, plot_func):
     assert plt.get_fignums() == []
 
 
+@pytest.mark.parametrize("plot_func", PLOT_FUNCS)
+def test_empty_frame_raises(wine_df, tmp_path, plot_func):
+    with pytest.raises(ValueError, match="empty"):
+        plot_func(wine_df.iloc[0:0], tmp_path)
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_filenames(wine_df, tmp_path):
     assert plot_alcohol_by_quality(wine_df, tmp_path).name == (
         "alcohol_by_quality_boxplot.png"

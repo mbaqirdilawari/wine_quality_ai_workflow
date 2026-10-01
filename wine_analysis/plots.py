@@ -14,6 +14,11 @@ BOXPLOT_FILENAME = "alcohol_by_quality_boxplot.png"
 SCATTER_FILENAME = "alcohol_vs_density_scatter.png"
 
 
+def _check_not_empty(df: pd.DataFrame) -> None:
+    if df.empty:
+        raise ValueError("Cannot plot an empty DataFrame")
+
+
 def _save(fig, out_dir, filename) -> Path:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -25,6 +30,7 @@ def _save(fig, out_dir, filename) -> Path:
 
 def plot_alcohol_by_quality(df: pd.DataFrame, out_dir) -> Path:
     """Boxplot of alcohol for each quality score; returns the saved path."""
+    _check_not_empty(df)
     levels = sorted(df["quality"].unique())
     groups = [df.loc[df["quality"] == q, "alcohol"] for q in levels]
 
@@ -39,6 +45,7 @@ def plot_alcohol_by_quality(df: pd.DataFrame, out_dir) -> Path:
 
 def plot_alcohol_vs_density(df: pd.DataFrame, out_dir) -> Path:
     """Scatter of alcohol vs density with a linear trend line; returns the path."""
+    _check_not_empty(df)
     x = df["alcohol"].to_numpy()
     y = df["density"].to_numpy()
     slope, intercept = np.polyfit(x, y, 1)

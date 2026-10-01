@@ -12,6 +12,7 @@ COPY data/ data/
 COPY setup.cfg .
 
 ENV WINE_DATA_PATH=/app/data/wine_quality_merged.csv \
-    WINE_OUTPUT_DIR=/app/outputs
+    WINE_OUTPUT_DIR=/app/outputs \
+    PYTHONUNBUFFERED=1
 
 CMD ["python", "-m", "wine_analysis.main"]
