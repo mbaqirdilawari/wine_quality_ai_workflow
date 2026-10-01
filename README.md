@@ -178,30 +178,50 @@ docker compose down
 
 ## 9. AI workflow
 
-Each role worked in a fresh chat:
-- **Architect:** produced [`docs/plan.md`](docs/plan.md), which covers requirements, module boundaries, risks, the containerization design, build order, the test plan and the manual smoke test.
-- **Builder:** implemented the `wine_analysis` package with tests for each module, the Makefile and `.venv` setup, the Dockerfile, `.dockerignore`, the optional `docker-compose.yml`, and this README.
-- **Tester:** tests and verification.
+I used Claude Code in VS Code, with a fresh chat for each role. The only things passed between the chats were the repository and `docs/plan.md`.
 
-> TODO (user): add your own description of how the workflow went and your judgement of each role's contribution.
+- **Architect:** inspected the dataset, then wrote [`docs/plan.md`](docs/plan.md): requirements, module structure, risks, containerization, build order, the test plan and the manual smoke test. It flagged real risks I had not thought about, such as the spaces in my folder path breaking Docker mounts. I reviewed the plan and asked for corrections before any code was written.
+- **Builder:** implemented the plan step by step, writing each module's tests in the same step, and explained its implementation decisions in a final summary. It stopped and asked me before going beyond the plan, which made it easy to stay in control.
+- **Manual smoke test:** I ran the project myself (section 8) before the Tester started.
+- **Tester:** reviewed the work independently against `docs/plan.md`, ran the tests, and probed edge cases with modified copies of the data. It found 9 issues, ranked by importance, and recommended fixes. I decided which to apply, it applied them, and I re-ran the checks myself.
+
+Overall, splitting the work into three roles made each chat focused, and having a written plan meant the Builder and Tester could work without the earlier conversations.
 
 ## 10. AI recommendations accepted / changed
 
-> TODO (user): describe at least one accepted and one changed or rejected recommendation. Candidates from this stage:
-> - accepted: matplotlib only; clean before exploring
-> - changed: `python:3.12-slim` and installing into the active environment → `python:3.13-slim` and a project `.venv`
-> - changed: "Compose is not needed" → added as an optional extra, with the `make docker-*` targets kept as the primary path
+**Accepted:**
+- Using matplotlib only, without seaborn, to keep dependencies small.
+- The Architect's idea to run every tool as `.venv/bin/python -m <tool>`, which avoids errors caused by the spaces in my project folder path.
+- I asked the Builder what would happen with a CSV containing missing values. It tested this and showed the model would crash. I approved its fix: incomplete rows are dropped during cleaning. I also agreed with its advice not to fill in (impute) values, since that would invent lab measurements.
+- The Tester's recommendations to keep only the 13 expected columns when loading and to pin the README's result numbers in tests. I also kept the RMSE checks it added beyond what I asked for, since they are in the same results table.
+- The Tester pointed out that `docs/plan.md` still describes the original cleaning. I decided not to edit the plan, because it belongs to the Architect; instead the README lists the changes I approved.
+
+**Changed or rejected:**
+- The Architect planned `python:3.12-slim` and installing packages into my active Python environment. I changed this to `python:3.13-slim` (matching my local Python) and a project `.venv`.
+- The Architect said Docker Compose was not needed. I agreed it was not required, but added it as an optional extra for convenience and practice, keeping the `make docker-*` targets as the main path.
+- The Builder tried to add "r ≈ -0.67" to the README. I stopped the edit and asked where the number came from. It had been calculated separately, not by the project code, so the number was left out, because I want every number in the README to be reproducible with `make run`.
+- The Architect suggested a short starting prompt for the Builder. I used a more detailed one that also asked the Builder to explain its implementation decisions, which my assignment requires.
 
 ## 11. Independent verification
 
-> TODO (user): describe how you checked the result yourself (e.g. re-running the smoke test, comparing 6497 / 1177 / 5320 with your own pandas check, opening the charts, comparing R² with your previous project).
+- I ran the full manual smoke test myself, starting from a deleted `.venv` to check a fresh install (section 8).
+- I checked the printed counts against what I expected from the data: 6,497 rows, 0 missing values, 1,177 duplicates, 5,320 rows after cleaning.
+- I opened both charts and checked they matched the written findings.
+- The R² values (0.275 for 3 features, 0.302 for 11) match the results of the same comparison in my previous version of this project.
+- I noticed during the smoke test that the README charts would not display on GitHub, before the Tester reported it.
+- After the Tester's fixes, I re-ran `make lint`, `make test`, `make docker-test` and `docker compose run --rm tests` myself (58 passed).
 
 ## 12. Comparison with the previous version
 
 | Previous version | This rebuild |
 |---|---|
-| one large file | modules with one job each (`config`, `data`, `explore`, `model`, `plots`, `main`) |
-| cleaning added last | cleaning done first, before exploration or modelling: exact duplicates removed, then rows with missing values || tests written after the code | tests written alongside each module |
-| no Docker, Makefile or configurable paths | Dockerfile (plus optional Compose), Makefile, and `WINE_DATA_PATH`/`WINE_OUTPUT_DIR` |
+| one large analysis file | modules with one job each (`config`, `data`, `explore`, `model`, `plots`, `main`) |
+| cleaning added at the end | cleaning done first: exact duplicates removed, then rows with missing values |
+| tests written after the code | tests written alongside each module (58 tests) |
+| Makefile, Docker and CI added gradually over several weeks | Makefile, Docker, optional Compose and configurable paths planned from the start |
 
-> TODO (user): add anything else, such as whether the results changed compared with the previous version.
+**What turned out better:** planning first gave a much cleaner structure, and the tests were designed together with the code instead of being added later. The Tester also caught problems I would probably have missed, such as extra columns in a user's CSV silently changing the cleaning.
+
+**What was harder:** I had to read the AI's work carefully. For example, the README draft contained a number that the code did not produce, and this comparison table originally claimed my previous version had no Makefile or Docker, which was not true.
+
+**Results:** the model results are the same as in my previous version (R² 0.275 and 0.302), which is a good sign that both versions are correct.
